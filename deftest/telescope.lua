@@ -431,7 +431,6 @@ local function run(contexts, callbacks, test_filter)
   for i, v in filter(contexts, function(i, v) return v.test and test_filter(v) end) do
     print(("[TEST] %s: %s"):format(v.context_name, v.name))
     env = newEnv()    -- Setup a new environment for this test
-    local ancestors = ancestors(i, contexts)
     local context_name = 'Top level'
     if contexts[i].parent ~= 0 then
       context_name = contexts[contexts[i].parent].name
@@ -442,15 +441,15 @@ local function run(contexts, callbacks, test_filter)
       context            = context_name,
       test               = i
     }
-    table.sort(ancestors)
+
     -- this "before" is the test callback passed into the runner
     invoke_callback("before", result)
 
-    -- run all the "before" blocks/functions
-    for _, a in ipairs(ancestors) do
-      if contexts[a].before then
-        setfenv(contexts[a].before, env)
-        contexts[a].before()
+    -- run the the "before" blocks/functions associated with the test context
+    for a, context in ipairs(contexts) do
+      if v.parent == a and context.before then
+        setfenv(context.before, env)
+        context.before()
       end
     end
 
@@ -464,12 +463,12 @@ local function run(contexts, callbacks, test_filter)
     end
     result.status_label = status_labels[result.status_code]
 
-    -- Run all the "after" blocks/functions
-    table.reverse(ancestors)
-    for _, a in ipairs(ancestors) do
-      if contexts[a].after then
-        setfenv(contexts[a].after, env)
-        contexts[a].after()
+    -- Run all the "after" blocks/functions  associated with the test context
+    for a = #contexts, 1, -1 do
+      local context = contexts[a]
+      if a == v.parent and context.after then
+        setfenv(context.after, env)
+        context.after()
       end
     end
 
