@@ -428,8 +428,7 @@ local function run(contexts, callbacks, test_filter)
     end
   end
 
-  for i, v in filter(contexts, function(i, v) return v.test and test_filter(v) end) do
-    print(("[TEST] %s: %s"):format(v.context_name, v.name))
+  for i, v in ipairs(contexts) do
     env = newEnv()    -- Setup a new environment for this test
     local context_name = 'Top level'
     if contexts[i].parent ~= 0 then
@@ -453,16 +452,17 @@ local function run(contexts, callbacks, test_filter)
       end
     end
 
-    -- check if it's a function because pending tests will just have "true"
-    if type(v.test) == "function" then
-      result.status_code, result.assertions_invoked, result.message = invoke_test(v.test)
-      invoke_callback(status_names[result.status_code], result)
-    else
-      result.status_code = status_codes.pending
-      invoke_callback("pending", result)
+    if v.test then
+      -- check if it's a function because pending tests will just have "true"
+      if type(v.test) == "function" then
+        result.status_code, result.assertions_invoked, result.message = invoke_test(v.test)
+        invoke_callback(status_names[result.status_code], result)
+      else
+        result.status_code = status_codes.pending
+        invoke_callback("pending", result)
+      end
+      result.status_label = status_labels[result.status_code]
     end
-    result.status_label = status_labels[result.status_code]
-
     -- Run all the "after" blocks/functions  associated with the test context
     for a = #contexts, 1, -1 do
       local context = contexts[a]
